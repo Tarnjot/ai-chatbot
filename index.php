@@ -39,10 +39,42 @@ $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php endforeach; ?>
     </div>
 
-    <form method="POST" action="process.php" class="d-flex">
-        <input type="text" name="message" class="form-control me-2" placeholder="Type your message..." required autofocus>
-        <button class="btn btn-primary">Send</button>
-    </form>
+
+
+<div class="card shadow-sm">
+  <div class="card-body">
+        <form id="chatForm" class="d-flex mb-3">
+            <input type="text" id="messageInput" class="form-control me-2" placeholder="Type your message..." required autofocus>
+            <button type="submit" class="btn btn-primary">Send</button>
+        </form>
+
+        <script>
+            document.getElementById('chatForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const input = document.getElementById('messageInput');
+                const message = input.value.trim();
+                if (!message) return;
+
+                const chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML += `<div class="message user"><strong>You:</strong> ${message}</div>`;
+
+
+                const res = await fetch('process.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message }) 
+                });
+                const data = await res.json();
+
+                chatBox.innerHTML += `<div class="message bot"><strong>Bot:</strong> ${data.reply}</div>`;
+
+
+                input.value = '';
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+        </script>
+  </div>
 </div>
 
 </body>
