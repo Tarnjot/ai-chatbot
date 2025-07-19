@@ -1,9 +1,7 @@
 <?php
 
 require_once 'includes/db.php';
-
 header('Content-Type: application/json');
-
 session_start();
 
 $user_id = 1;
@@ -12,40 +10,39 @@ $data = json_decode(file_get_contents("php://input"), true);
 $message = trim($data['message'] ?? '');
 
 if ($message === '') {
-    echo json_encode(['error' => 'empty message']);
+    echo json_encode(['error' => 'empty messsage']);
     exit;
 }
 
-$lower = strtolower($message);
+$payload = json_encode([
+    'model' => 'llama3',
+    'messages' => [
+        ['role' => 'user', 'content' => $message]
+    ]
+]);
 
-$stmt = $pdo->prepare("
-    SELECT message FROM conversations
-    WHERE user_id = ?
-    ORDER BY timestamp DESC
-    LIMIT 3
-");
-$stmt->execute([$user_id]);
-$recentMessages = $stmt->fetchAll(PDO::FETCH_COLUMN);
-$context = implode(" | ", array_reverse($recentMessages));
+$ch = curl_innit('https://localhost:11434/api/chat');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
 
-if (strpos($lower, 'hello') !== false || strpos($lower, 'hi') !== false) {
-    $response = "Hey there! 👋 How can I help you today?";
-} elseif (strpos($lower, 'how are you') !== false) {
-    $response = "I'm just code, but I'm running smoothly! 😄";
-} elseif (strpos($lower, 'help') !== false) {
-    $response = "I'm here to chat! Ask me anything.";
-} elseif (strpos($lower, 'bye') !== false) {
-    $response = "Goodbye! Come back anytime. 👋";
-} elseif (strpos($lower, 'what did i say') !== false) {
-    $response = "Your last few messages were: " . $context;
-} else {
-    $response = "Hmm... I'm still learning. Try asking something else!";
+$response = curl_exec($ch);
+
+if ($response === false) {
+    echo json_encode(['reply' => "⚠️ Error talking to the AI. Is Ollama running?"]);
+    exit;
 }
+
+$data = json_decode($response, true);
+$reply = $data['message']['content'] ?? "🤖 AI didn't respond.";
+
+curl_close($ch);
 
 $stmt = $pdo->prepare("
     INSERT INTO conversations (user_id, message, response)
     VALUES (?, ?, ?)
 ");
-$stmt->execute([$user_id, $message, $response]);
+$stmt->execute([$user_id, $message, $reply]);
 
-echo json_encode(['reply' => $response]);
+echo json_encode(['reply' => $reply]);
