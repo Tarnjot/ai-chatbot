@@ -21,7 +21,7 @@ $payload = json_encode([
     ]
 ]);
 
-$ch = curl_innit('https://localhost:11434/api/chat');
+$ch = curl_init('http://localhost:11434/api/chat');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
@@ -34,8 +34,17 @@ if ($response === false) {
     exit;
 }
 
-$data = json_decode($response, true);
-$reply = $data['message']['content'] ?? "🤖 AI didn't respond.";
+$lines = explode("\n", $response);
+$reply = '';
+
+foreach ($lines as $line) {
+    if (trim($line)) {
+        $data = json_decode($line, true);
+        $reply .= $data['message']['content'] ?? '';
+    }
+}
+
+$reply = trim($reply) ?: "🤖 AI didn't respond.";
 
 curl_close($ch);
 
